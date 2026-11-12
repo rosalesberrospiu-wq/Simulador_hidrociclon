@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Simulador de Hidrociclón · Separación sólido-líquido</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="26" height="26">
+          <path d="M8 4h16v10l-6 8v6h-4v-6l-6-8V4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M11 9h10" stroke="currentColor" stroke-width="1.6" opacity=".55"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Simulador de Hidrociclón</h1>
+        <p>Separación por tamaño &middot; patrón de flujo interno y rendimiento en tiempo real</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="hint-live" title="La simulación corre de forma continua">Simulación continua</span>
+      <button id="btnPause" class="btn">Pausar animación</button>
+      <button id="btnReset" class="btn btn-ghost">Restablecer</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- ------------------------- controles ------------------------- -->
+    <aside class="panel controls">
+      <div class="panel-head">
+        <h2>Variables operativas</h2>
+        <span class="panel-tag">8</span>
+      </div>
+      <div class="presets" id="presets"></div>
+      <div class="controls-list" id="controls"></div>
+      <p class="panel-note">
+        Mueve cualquier control y observa el cambio inmediato en el patrón de partículas,
+        la curva de partición y los indicadores de rendimiento.
+      </p>
+    </aside>
+
+    <!-- -------------------------- escena -------------------------- -->
+    <section class="panel stage">
+      <div class="stage-head">
+        <h2>Patrón de flujo interno</h2>
+        <span class="live-badge" id="stageBadge"></span>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="cyclone" aria-label="Animación del flujo interno del hidrociclón"></canvas>
+      </div>
+
+      <div class="legend">
+        <div class="legend-group">
+          <span class="legend-title">Tamaño de partícula</span>
+          <span class="lg"><i style="background:#5ad2ff"></i>&lt; 25 µm</span>
+          <span class="lg"><i style="background:#5ef2b8"></i>25–63 µm</span>
+          <span class="lg"><i style="background:#ffd166"></i>63–150 µm</span>
+          <span class="lg"><i style="background:#ff9f43"></i>150–300 µm</span>
+          <span class="lg"><i style="background:#ff5d5d"></i>&gt; 300 µm</span>
+        </div>
+        <div class="legend-group">
+          <span class="lg"><i class="dot-of"></i>Rebose: finos</span>
+          <span class="lg"><i class="dot-uf"></i>Descarga: gruesos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------ rendimiento ------------------------ -->
+    <aside class="panel results">
+      <div class="panel-head">
+        <h2>Rendimiento</h2>
+        <span class="panel-tag">en vivo</span>
+      </div>
+
+      <div id="warnings"></div>
+      <div class="metrics" id="metrics"></div>
+
+      <div class="balance">
+        <h3>Balance de masa</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Corriente</th>
+              <th>Q <span>(m³/h)</span></th>
+              <th>Sólidos <span>(t/h)</span></th>
+              <th>Cw <span>(%)</span></th>
+            </tr>
+          </thead>
+          <tbody id="balanceBody"></tbody>
+        </table>
+      </div>
+    </aside>
+
+    <!-- --------------------------- gráficos --------------------------- -->
+    <section class="panel charts">
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Curva de partición</h3>
+          <span class="chart-hint">Eficiencia de paso al underflow para cada tamaño</span>
+        </div>
+        <canvas id="chartPartition"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Distribución de tamaño</h3>
+          <span class="chart-legend">
+            <span class="lg"><i style="background:#7f9db8"></i>Alimentación</span>
+            <span class="lg"><i style="background:#22d3ee"></i>Rebose</span>
+            <span class="lg"><i style="background:#f59e0b"></i>Descarga</span>
+          </span>
+        </div>
+        <canvas id="chartPsd"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- --------------------------- modelo ----------------------------- -->
+  <details class="panel doc">
+    <summary>Cómo funciona el modelo (supuestos y ecuaciones)</summary>
+    <div class="doc-body">
+      <p>
+        Modelo empírico simplificado con fines didácticos. No sustituye el diseño de un equipo
+        real (Plitt, Nageswararao o correlaciones del fabricante), pero reproduce las tendencias
+        físicas correctas del proceso.
+      </p>
+      <div class="doc-grid">
+        <div>
+          <h4>Caudal de alimentación</h4>
+          <code>Q = A<sub>i</sub> · √(2·ΔP / (ρ<sub>p</sub> · Eu))</code>
+          <p>Con A<sub>i</sub> ≈ 5,5 % de Dc² (entrada rectangular) y Eu ≈ 9,5. El caudal crece con la raíz de la presión.</p>
+        </div>
+        <div>
+          <h4>Tamaño de corte</h4>
+          <code>d<sub>50c</sub> ∝ Di · Dc<sup>0,35</sup> · ΔP<sup>−0,25</sup> · Δρ<sup>−0,5</sup></code>
+          <p>Calibrado a 75 µm para Dc = 250 mm, Di = 80 mm, 100 kPa y partículas de 2650 kg/m³ en agua.</p>
+        </div>
+        <div>
+          <h4>Curva de partición</h4>
+          <code>η(d) = R<sub>f</sub> + (1 − R<sub>f</sub>) · (1 − 2<sup>−(d/d<sub>50c</sub>)<sup>m</sup></sup>)</code>
+          <p>R<sub>f</sub> es el agua que se “escapa” al underflow (bypass) y m la nitidez de la clasificación.</p>
+        </div>
+        <div>
+          <h4>Reparto de agua</h4>
+          <code>R<sub>f</sub> ≈ (0,10 + 0,55·(Do/Di)²) · (100/ΔP)<sup>0,10</sup></code>
+          <p>Un ápice grande envía más agua y finos al underflow; un ápice pequeño puede provocar descarga en cuerda u obstrucción.</p>
+        </div>
+      </div>
+      <p class="doc-foot">
+        La alimentación se representa con una distribución log-normal (d50 y σ<sub>g</sub>). Las partículas
+        gruesas se separan hacia la pared y descienden en espiral hasta el ápice (underflow); las finas
+        migran al núcleo central y ascienden por el vortex finder (overflow).
+      </p>
+    </div>
+  </details>
+
+  <footer class="foot">
+    <span>Simulador educativo de hidrociclón</span>
+    <span class="foot-sep">·</span>
+    <span>HTML5 Canvas + JavaScript, sin dependencias externas</span>
+  </footer>
+
+  <script src="js/model.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/cyclone.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

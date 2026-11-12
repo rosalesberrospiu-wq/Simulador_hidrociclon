@@ -1,0 +1,2883 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Simulador de Hidrociclón · Separación sólido-líquido</title>
+  <style>
+/* ============================================================
+   Simulador de Hidrociclón — hoja de estilos
+   ============================================================ */
+
+:root {
+  --bg: #060c14;
+  --bg-2: #08111b;
+  --panel: #0c1724;
+  --panel-2: #0f1e2d;
+  --line: #1a3047;
+  --line-soft: #142636;
+  --text: #e4f1fb;
+  --muted: #89a5bd;
+  --muted-2: #648099;
+  --cyan: #22d3ee;
+  --teal: #2dd4bf;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --radius: 16px;
+  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1100px 620px at 18% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(45, 212, 191, 0.07), transparent 55%),
+    radial-gradient(800px 700px at 50% 120%, rgba(245, 158, 11, 0.05), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------ topbar ------------------------------ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex: 0 0 auto;
+  padding: 11px 24px 9px;
+  max-width: 1560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.logo {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  color: #9be9ff;
+  background: linear-gradient(160deg, rgba(34, 211, 238, 0.20), rgba(45, 212, 191, 0.06));
+  border: 1px solid rgba(34, 211, 238, 0.30);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 17.5px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+
+.brand-text p {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.hint-live {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  letter-spacing: 0.3px;
+}
+.hint-live::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 10px var(--teal);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid rgba(34, 211, 238, 0.34);
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.06));
+  color: #d8f7ff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: 9px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, transform 0.12s;
+}
+.btn:hover { border-color: rgba(34, 211, 238, 0.62); background: rgba(34, 211, 238, 0.18); }
+.btn:active { transform: translateY(1px); }
+.btn.is-paused { border-color: rgba(245, 158, 11, 0.55); color: #ffe6b8; background: rgba(245, 158, 11, 0.14); }
+
+.btn-ghost {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+.btn-ghost:hover { border-color: #2b4c68; background: rgba(255, 255, 255, 0.04); color: var(--text); }
+
+/* ------------------------------ layout ------------------------------ */
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 0 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 120px),
+    var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 22px 50px -32px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px 8px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #a9c6dc;
+}
+
+.panel-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 3px 8px;
+}
+
+/* ----------------------------- controles ---------------------------- */
+
+.controls { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 14px 9px;
+}
+
+.chip {
+  appearance: none;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 550;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all 0.16s;
+  white-space: nowrap;
+}
+.chip:hover { color: var(--text); border-color: #2c4d69; }
+.chip.active {
+  color: #06222b;
+  background: linear-gradient(180deg, #5ee9d8, #22d3ee);
+  border-color: transparent;
+  box-shadow: 0 4px 16px -6px rgba(34, 211, 238, 0.8);
+}
+
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 14px 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.control {
+  padding: 4px 2px;
+  border-bottom: 1px dashed rgba(26, 48, 71, 0.7);
+}
+.control:last-child { border-bottom: 0; }
+
+.control-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.control-head label {
+  font-size: 11px;
+  font-weight: 550;
+  color: #cfe4f2;
+  line-height: 1.2;
+}
+
+.control-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--teal);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.control input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 13px;
+  background: transparent;
+  cursor: pointer;
+  display: block;
+}
+
+.control input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #2dd4bf 0%, #22d3ee var(--fill, 50%), #16293b var(--fill, 50%), #16293b 100%);
+}
+.control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px; height: 15px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: #eafcff;
+  border: 3px solid #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.55);
+  transition: box-shadow 0.15s;
+}
+.control input[type="range"]:hover::-webkit-slider-thumb,
+.control input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.95);
+}
+
+.control input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 99px;
+  background: #16293b;
+}
+.control input[type="range"]::-moz-range-progress {
+  height: 5px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #2dd4bf, #22d3ee);
+}
+.control input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #eafcff;
+  border: 3px solid #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+}
+
+.control input[type="range"]:focus-visible { outline: none; }
+
+.control-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.control-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--muted-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control-unit {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--muted-2);
+  white-space: nowrap;
+  padding-top: 1px;
+}
+
+.panel-note {
+  margin: auto 0 0;
+  padding: 9px 16px 11px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--muted-2);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* ------------------------------ escena ------------------------------ */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 11px 18px 6px;
+}
+
+.stage-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #a9c6dc;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: #b9e9f7;
+  background: rgba(34, 211, 238, 0.07);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  padding: 5px 10px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.live-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.live-badge .sep { color: var(--muted-2); }
+
+.canvas-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  flex: 0 0 auto;
+  padding: 7px 18px 9px;
+  border-top: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(6, 12, 20, 0), rgba(6, 12, 20, 0.4));
+}
+
+.legend-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+
+.legend-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted-2);
+  margin-right: 2px;
+}
+
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lg i {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.lg i.dot-of { background: var(--cyan); box-shadow: 0 0 8px rgba(34, 211, 238, 0.7); }
+.lg i.dot-uf { background: var(--amber); box-shadow: 0 0 8px rgba(245, 158, 11, 0.7); }
+
+/* ---------------------------- rendimiento --------------------------- */
+
+.results {
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+#warnings { display: flex; flex-direction: column; gap: 6px; padding: 0 12px; }
+
+.alert {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 11.5px;
+  line-height: 1.45;
+  border-radius: 10px;
+  padding: 9px 11px;
+  border: 1px solid;
+  animation: fadeIn 0.3s ease;
+}
+
+.alert-warn {
+  color: #ffe3b0;
+  background: rgba(245, 158, 11, 0.09);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.alert-danger {
+  color: #ffc9c9;
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.38);
+}
+
+.alert-icon {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  margin-top: 1px;
+  background: currentColor;
+  color: #10202c;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012));
+  border: 1px solid var(--line-soft);
+  min-width: 0;
+}
+
+.metric-label {
+  font-size: 9px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-2);
+}
+
+.metric-value {
+  font-family: var(--mono);
+  font-size: 17.5px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  color: #eaf9ff;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.metric-value em {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 500;
+  color: var(--muted-2);
+  margin-left: 3px;
+  letter-spacing: 0;
+}
+
+.metric-sub {
+  font-size: 9px;
+  color: var(--muted-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.balance { padding: 2px 12px 0; }
+
+.balance h3 {
+  margin: 2px 0 6px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #a9c6dc;
+}
+
+.balance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.balance th {
+  font-family: system-ui, sans-serif;
+  font-weight: 550;
+  font-size: 9px;
+  text-align: right;
+  color: var(--muted-2);
+  padding: 0 0 5px;
+  border-bottom: 1px solid var(--line);
+}
+.balance th:first-child { text-align: left; }
+.balance th span { display: block; font-size: 8px; opacity: 0.75; }
+
+.balance td {
+  padding: 5px 0;
+  text-align: right;
+  color: #cfe3f2;
+  border-bottom: 1px dashed rgba(26, 48, 71, 0.55);
+}
+.balance td:first-child {
+  text-align: left;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--muted);
+}
+.balance tr:last-child td { border-bottom: 0; }
+
+.row-feed td:first-child { color: #b9d7ea; }
+.row-of td:first-child { color: #7ce0f5; }
+.row-uf td:first-child { color: #ffc36b; }
+
+/* ------------------------------ gráficos ---------------------------- */
+
+.charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column: 1 / -1;
+  gap: 14px;
+  padding: 11px 12px 12px;
+  margin: 0;
+  min-height: 0;
+}
+
+.chart-card { min-width: 0; display: flex; flex-direction: column; }
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+
+.chart-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d3e9f7;
+}
+
+.chart-hint { font-size: 10px; color: var(--muted-2); }
+
+.chart-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.chart-card canvas {
+  width: 100%;
+  height: clamp(150px, 17vh, 190px);
+  display: block;
+}
+
+/* ------------------------------- doc -------------------------------- */
+
+.doc {
+  flex: 0 0 auto;
+  margin: 12px auto 0;
+  width: calc(100% - 48px);
+  max-width: 1512px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.doc summary {
+  cursor: pointer;
+  padding: 10px 18px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #b9d7ea;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  user-select: none;
+}
+.doc summary::-webkit-details-marker { display: none; }
+.doc summary::before {
+  content: "+";
+  width: 18px; height: 18px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--cyan);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background: rgba(34, 211, 238, 0.07);
+}
+.doc[open] summary::before { content: "–"; }
+.doc[open] summary { border-bottom: 1px solid var(--line-soft); }
+
+.doc-body { padding: 16px 20px 20px; }
+
+.doc-body > p {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 900px;
+}
+
+.doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.doc-grid > div {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.doc-grid h4 {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #a9c6dc;
+}
+
+.doc-grid code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: #9ef0ff;
+  background: rgba(34, 211, 238, 0.06);
+  border: 1px solid rgba(34, 211, 238, 0.14);
+  border-radius: 8px;
+  padding: 7px 9px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.doc-grid p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--muted-2);
+}
+
+.doc-foot {
+  margin: 14px 0 0 !important;
+  font-size: 11px !important;
+  color: var(--muted-2) !important;
+}
+
+/* ------------------------------- pie -------------------------------- */
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  padding: 10px 24px 12px;
+  font-size: 10px;
+  color: var(--muted-2);
+  letter-spacing: 0.3px;
+}
+.foot-sep { opacity: 0.5; }
+
+/* ---------------------------- responsive ---------------------------- */
+
+@media (max-width: 1320px) {
+  body { display: block; }
+  .layout {
+    grid-template-columns: 290px minmax(0, 1fr);
+    grid-template-rows: auto;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .stage { min-height: 600px; }
+  .controls, .results { overflow: visible; }
+  .controls-list { overflow: visible; }
+  .results { grid-column: 1 / -1; }
+  .metrics { grid-template-columns: repeat(4, 1fr); }
+  .balance { max-width: 640px; }
+}
+
+@media (min-width: 1321px) and (max-height: 1040px) {
+  .brand-text p { display: none; }
+  .panel-note { display: none; }
+  .metric-sub { display: none; }
+}
+
+/* pantallas bajas: mejor desplazar que aplastar el equipo */
+@media (min-width: 1321px) and (max-height: 900px) {
+  body { display: block; }
+  .layout {
+    grid-template-columns: 320px minmax(0, 1fr) 340px;
+    grid-template-rows: auto;
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .stage { min-height: 600px; }
+  .controls, .results { overflow: visible; }
+  .controls-list { overflow: visible; }
+}
+
+@media (min-width: 1400px) and (min-height: 901px) {
+  .layout {
+    grid-template-columns: 320px minmax(0, 1fr) 560px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "controls stage results"
+      "controls stage charts";
+  }
+  .controls { grid-area: controls; }
+  .stage { grid-area: stage; }
+  .results { grid-area: results; }
+  .charts {
+    grid-area: charts;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .charts .chart-card { flex: 1 1 0; min-height: 0; }
+  .charts .chart-card canvas { flex: 1 1 auto; height: auto; min-height: 90px; }
+  .metrics { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 1400px) and (max-width: 1599px) and (min-height: 901px) {
+  .layout { grid-template-columns: 320px minmax(0, 1fr) 480px; }
+}
+
+@media (max-width: 940px) {
+  .topbar { padding: 12px 16px 10px; flex-wrap: wrap; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto; padding: 0 16px; }
+  .stage { min-height: 540px; }
+  .charts { grid-template-columns: 1fr; }
+  .doc { width: auto; margin: 14px 16px 0; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .brand-text p { display: none; }
+  .hint-live { display: none; }
+}
+
+@media (max-width: 560px) {
+  .topbar-actions { width: 100%; }
+  .btn { flex: 1; }
+  .stage-head { flex-direction: column; align-items: flex-start; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .metric-value { font-size: 16px; }
+  .chart-card canvas { height: 190px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint-live::before, .live-badge .dot { animation: none; }
+}
+
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="26" height="26">
+          <path d="M8 4h16v10l-6 8v6h-4v-6l-6-8V4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M11 9h10" stroke="currentColor" stroke-width="1.6" opacity=".55"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Simulador de Hidrociclón</h1>
+        <p>Separación por tamaño &middot; patrón de flujo interno y rendimiento en tiempo real</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="hint-live" title="La simulación corre de forma continua">Simulación continua</span>
+      <button id="btnPause" class="btn">Pausar animación</button>
+      <button id="btnReset" class="btn btn-ghost">Restablecer</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- ------------------------- controles ------------------------- -->
+    <aside class="panel controls">
+      <div class="panel-head">
+        <h2>Variables operativas</h2>
+        <span class="panel-tag">8</span>
+      </div>
+      <div class="presets" id="presets"></div>
+      <div class="controls-list" id="controls"></div>
+      <p class="panel-note">
+        Mueve cualquier control y observa el cambio inmediato en el patrón de partículas,
+        la curva de partición y los indicadores de rendimiento.
+      </p>
+    </aside>
+
+    <!-- -------------------------- escena -------------------------- -->
+    <section class="panel stage">
+      <div class="stage-head">
+        <h2>Patrón de flujo interno</h2>
+        <span class="live-badge" id="stageBadge"></span>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="cyclone" aria-label="Animación del flujo interno del hidrociclón"></canvas>
+      </div>
+
+      <div class="legend">
+        <div class="legend-group">
+          <span class="legend-title">Tamaño de partícula</span>
+          <span class="lg"><i style="background:#5ad2ff"></i>&lt; 25 µm</span>
+          <span class="lg"><i style="background:#5ef2b8"></i>25–63 µm</span>
+          <span class="lg"><i style="background:#ffd166"></i>63–150 µm</span>
+          <span class="lg"><i style="background:#ff9f43"></i>150–300 µm</span>
+          <span class="lg"><i style="background:#ff5d5d"></i>&gt; 300 µm</span>
+        </div>
+        <div class="legend-group">
+          <span class="lg"><i class="dot-of"></i>Rebose: finos</span>
+          <span class="lg"><i class="dot-uf"></i>Descarga: gruesos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------ rendimiento ------------------------ -->
+    <aside class="panel results">
+      <div class="panel-head">
+        <h2>Rendimiento</h2>
+        <span class="panel-tag">en vivo</span>
+      </div>
+
+      <div id="warnings"></div>
+      <div class="metrics" id="metrics"></div>
+
+      <div class="balance">
+        <h3>Balance de masa</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Corriente</th>
+              <th>Q <span>(m³/h)</span></th>
+              <th>Sólidos <span>(t/h)</span></th>
+              <th>Cw <span>(%)</span></th>
+            </tr>
+          </thead>
+          <tbody id="balanceBody"></tbody>
+        </table>
+      </div>
+    </aside>
+
+    <!-- --------------------------- gráficos --------------------------- -->
+    <section class="panel charts">
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Curva de partición</h3>
+          <span class="chart-hint">Eficiencia de paso al underflow para cada tamaño</span>
+        </div>
+        <canvas id="chartPartition"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Distribución de tamaño</h3>
+          <span class="chart-legend">
+            <span class="lg"><i style="background:#7f9db8"></i>Alimentación</span>
+            <span class="lg"><i style="background:#22d3ee"></i>Rebose</span>
+            <span class="lg"><i style="background:#f59e0b"></i>Descarga</span>
+          </span>
+        </div>
+        <canvas id="chartPsd"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- --------------------------- modelo ----------------------------- -->
+  <details class="panel doc">
+    <summary>Cómo funciona el modelo (supuestos y ecuaciones)</summary>
+    <div class="doc-body">
+      <p>
+        Modelo empírico simplificado con fines didácticos. No sustituye el diseño de un equipo
+        real (Plitt, Nageswararao o correlaciones del fabricante), pero reproduce las tendencias
+        físicas correctas del proceso.
+      </p>
+      <div class="doc-grid">
+        <div>
+          <h4>Caudal de alimentación</h4>
+          <code>Q = A<sub>i</sub> · √(2·ΔP / (ρ<sub>p</sub> · Eu))</code>
+          <p>Con A<sub>i</sub> ≈ 5,5 % de Dc² (entrada rectangular) y Eu ≈ 9,5. El caudal crece con la raíz de la presión.</p>
+        </div>
+        <div>
+          <h4>Tamaño de corte</h4>
+          <code>d<sub>50c</sub> ∝ Di · Dc<sup>0,35</sup> · ΔP<sup>−0,25</sup> · Δρ<sup>−0,5</sup></code>
+          <p>Calibrado a 75 µm para Dc = 250 mm, Di = 80 mm, 100 kPa y partículas de 2650 kg/m³ en agua.</p>
+        </div>
+        <div>
+          <h4>Curva de partición</h4>
+          <code>η(d) = R<sub>f</sub> + (1 − R<sub>f</sub>) · (1 − 2<sup>−(d/d<sub>50c</sub>)<sup>m</sup></sup>)</code>
+          <p>R<sub>f</sub> es el agua que se “escapa” al underflow (bypass) y m la nitidez de la clasificación.</p>
+        </div>
+        <div>
+          <h4>Reparto de agua</h4>
+          <code>R<sub>f</sub> ≈ (0,10 + 0,55·(Do/Di)²) · (100/ΔP)<sup>0,10</sup></code>
+          <p>Un ápice grande envía más agua y finos al underflow; un ápice pequeño puede provocar descarga en cuerda u obstrucción.</p>
+        </div>
+      </div>
+      <p class="doc-foot">
+        La alimentación se representa con una distribución log-normal (d50 y σ<sub>g</sub>). Las partículas
+        gruesas se separan hacia la pared y descienden en espiral hasta el ápice (underflow); las finas
+        migran al núcleo central y ascienden por el vortex finder (overflow).
+      </p>
+    </div>
+  </details>
+
+  <footer class="foot">
+    <span>Simulador educativo de hidrociclón</span>
+    <span class="foot-sep">·</span>
+    <span>HTML5 Canvas + JavaScript, sin dependencias externas</span>
+  </footer>
+
+  <script>
+/*
+ * model.js
+ * Modelo empírico simplificado de un hidrociclón para fines educativos.
+ *
+ * No pretende reemplazar un diseño de ingeniería (Plitt, Krebs, Nageswararao).
+ * Reproduce las tendencias físicas correctas: presión -> caudal y corte,
+ * geometría -> reparto de agua y nitidez, densidad y concentración -> corte.
+ */
+(function (root) {
+  'use strict';
+
+  var RHO_W = 1000; // kg/m3
+
+  var DEFAULTS = {
+    pressure: 100,   // kPa
+    dc: 250,         // mm  diámetro del cuerpo cilíndrico
+    diRatio: 0.32,   // tubo de rebose (vortex finder) / Dc
+    doRatio: 0.16,   // ápice (spigot) / Dc
+    feedSolids: 20,  // % en peso de sólidos en la alimentación
+    d50Feed: 120,    // µm  mediana de la alimentación
+    sigmaFeed: 2.6,  // desviación estándar geométrica (adimensional)
+    rhoS: 2650       // kg/m3 densidad de las partículas
+  };
+
+  var LIMITS = {
+    pressure: [30, 300],
+    dc: [75, 660],
+    diRatio: [0.20, 0.45],
+    doRatio: [0.08, 0.26],
+    feedSolids: [3, 55],
+    d50Feed: [20, 400],
+    sigmaFeed: [1.5, 4.5],
+    rhoS: [1500, 5000]
+  };
+
+  function clamp(v, a, b) {
+    return v < a ? a : (v > b ? b : v);
+  }
+
+  /* ---------- distribución normal / log-normal ---------- */
+
+  function erf(x) {
+    var s = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    var t = 1 / (1 + 0.3275911 * x);
+    var y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return s * y;
+  }
+
+  function normCdf(z) {
+    return 0.5 * (1 + erf(z / Math.SQRT2));
+  }
+
+  function logNormalCdf(d, d50, sigmaG) {
+    if (d <= 0) return 0;
+    var s = Math.log(sigmaG);
+    if (s <= 1e-9) return d < d50 ? 0 : 1;
+    return normCdf((Math.log(d) - Math.log(d50)) / s);
+  }
+
+  function buildBins(minD, maxD, n) {
+    var bins = [];
+    var ratio = Math.pow(maxD / minD, 1 / n);
+    var lo = minD;
+    for (var i = 0; i < n; i++) {
+      var hi = lo * ratio;
+      bins.push({ lo: lo, hi: hi, mid: Math.sqrt(lo * hi) });
+      lo = hi;
+    }
+    return bins;
+  }
+
+  /* ---------- modelo principal ---------- */
+
+  function compute(overrides) {
+    var p = {};
+    Object.keys(DEFAULTS).forEach(function (k) {
+      var v = (overrides && typeof overrides[k] === 'number') ? overrides[k] : DEFAULTS[k];
+      p[k] = clamp(v, LIMITS[k][0], LIMITS[k][1]);
+    });
+
+    var Cw = p.feedSolids / 100;                 // fracción másica de sólidos
+    var rhoS = p.rhoS;
+    var rhoPulp = 1 / (Cw / rhoS + (1 - Cw) / RHO_W);
+    var Cv = (Cw / rhoS) / ((Cw / rhoS) + ((1 - Cw) / RHO_W));
+
+    var Dc = p.dc / 1000;                        // m
+    var Di = p.diRatio * Dc;                     // m (vortex finder)
+    var Do = p.doRatio * Dc;                     // m (ápice)
+
+    /* Caudal: Q = Ai · sqrt(2·ΔP / (ρp·Eu))
+       Ai ~ 5.5 % de Dc² (entrada rectangular) y Eu ~ 9.5 (pérdida típica). */
+    var Ai = 0.055 * Dc * Dc;
+    var Eu = 9.5;
+    var Q = Ai * Math.sqrt(2 * p.pressure * 1000 / (rhoPulp * Eu)); // m3/s
+
+    /* Tamaño de corte corregido d50c.
+       Referencia calibrada: Dc 250 mm, Di 80 mm, Do 40 mm, 100 kPa, sílice 2650 kg/m3 -> 75 µm.
+       Exponentes acordes a la teoría del sedimentador centrífugo (d50 ~ P^-0.25). */
+    var dRho = Math.max(200, rhoS - RHO_W);
+    var d50c = 75
+      * Math.pow((Di * 1000) / 80, 1.00)
+      * Math.pow(p.dc / 250, 0.35)
+      * Math.pow(p.pressure / 100, -0.25)
+      * Math.pow(dRho / 1650, -0.50)
+      * ((1 + 0.9 * Cw) / 1.18)
+      * Math.pow((Do * 1000) / 40, -0.12);
+
+    /* Reparto volumétrico de agua hacia el underflow (bypass). */
+    var Rf = (0.10 + 0.55 * Math.pow(Do / Di, 2))
+      * Math.pow(100 / p.pressure, 0.10)
+      * ((1 + 0.55 * Cw) / 1.11);
+    Rf = clamp(Rf, 0.04, 0.55);
+
+    /* Nitidez de la clasificación (pendiente de la curva de partición). */
+    var m = clamp(1.6 + 2.6 * (Do / Di) - 1.1 * Cw, 1.4, 4.5);
+
+    /* Curva de partición: η(d) = Rf + (1-Rf)·(1 - 2^-(d/d50c)^m) */
+    function eta(d) {
+      var base = Math.pow(Math.max(d, 0) / d50c, m);
+      return Rf + (1 - Rf) * (1 - Math.exp(-Math.LN2 * base));
+    }
+
+    /* Muestreo de tamaños de la alimentación (log-normal). */
+    function sampleD() {
+      var u = Math.random() || 1e-9;
+      var v = Math.random();
+      var z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      return clamp(Math.exp(Math.log(p.d50Feed) + Math.log(p.sigmaFeed) * z), 1, 2600);
+    }
+
+    /* ---------- balance de masa ---------- */
+
+    var bins = buildBins(2, 2000, 72);
+    var feedFrac = [];
+    var etaArr = [];
+    var ufFrac = [];
+    var ofFrac = [];
+    var soma = 0;
+
+    for (var i = 0; i < bins.length; i++) {
+      var f = logNormalCdf(bins[i].hi, p.d50Feed, p.sigmaFeed) -
+              logNormalCdf(bins[i].lo, p.d50Feed, p.sigmaFeed);
+      f = Math.max(0, f);
+      feedFrac.push(f);
+      soma += f;
+    }
+    if (soma > 0) {
+      for (var j = 0; j < feedFrac.length; j++) feedFrac[j] /= soma;
+    }
+
+    var solidsToUF = 0;
+    var fineCut = d50c * 0.5;
+    var coarseCut = d50c * 2.0;
+    var fineMassUF = 0;
+    var coarseMassOF = 0;
+
+    for (var k = 0; k < bins.length; k++) {
+      var e = eta(bins[k].mid);
+      etaArr.push(e);
+      var toUF = feedFrac[k] * e;
+      ufFrac.push(toUF);
+      ofFrac.push(feedFrac[k] - toUF);
+      solidsToUF += toUF;
+      if (bins[k].mid < fineCut) fineMassUF += toUF;
+      if (bins[k].mid > coarseCut) coarseMassOF += feedFrac[k] - toUF;
+    }
+
+    var ufTot = 0, ofTot = 0;
+    for (var q = 0; q < bins.length; q++) { ufTot += ufFrac[q]; ofTot += ofFrac[q]; }
+
+    var feedDist = [], ufDist = [], ofDist = [];
+    for (var r = 0; r < bins.length; r++) {
+      feedDist.push(feedFrac[r] * 100);
+      ufDist.push(ufTot > 0 ? (ufFrac[r] / ufTot) * 100 : 0);
+      ofDist.push(ofTot > 0 ? (ofFrac[r] / ofTot) * 100 : 0);
+    }
+
+    /* caudales másicos y volumétricos */
+    var solidsFeed = rhoPulp * Q * Cw;   // kg/s
+    var solidsUF = solidsFeed * solidsToUF;
+    var solidsOF = solidsFeed - solidsUF;
+
+    var waterIn = Q * (1 - Cv);          // m3/s de agua
+    var waterUF = Rf * waterIn;
+    var waterOF = waterIn - waterUF;
+
+    var Qu = Rf * Q;
+    var Qo = Q - Qu;
+
+    var CwUF = solidsUF / (solidsUF + waterUF * RHO_W + 1e-12);
+    var CwOF = solidsOF / (solidsOF + waterOF * RHO_W + 1e-12);
+
+    /* Error probable (curva corregida) */
+    var d25 = d50c * Math.pow(-Math.log(0.75) / Math.LN2, 1 / m);
+    var d75 = d50c * Math.pow(-Math.log(0.25) / Math.LN2, 1 / m);
+    var Ep = (d75 - d25) / 2;
+
+    var out = {
+      params: p,
+      rhoPulp: rhoPulp,
+      Cv: Cv,
+      d50c: d50c,
+      Rf: Rf,
+      m: m,
+      d25: d25,
+      d75: d75,
+      Ep: Ep,
+      Q: Q,
+      Q_ls: Q * 1000,
+      Q_m3h: Q * 3600,
+      Qu: Qu,
+      Qo: Qo,
+      eta: eta,
+      etaArr: etaArr,
+      sampleD: sampleD,
+      bins: bins,
+      feedDist: feedDist,
+      ufDist: ufDist,
+      ofDist: ofDist,
+      solidsFeed: solidsFeed,
+      solidsUF: solidsUF,
+      solidsOF: solidsOF,
+      solidsRecovery: solidsToUF,           // fracción 0..1
+      waterUF: waterUF,
+      waterOF: waterOF,
+      CwUF: CwUF,
+      CwOF: CwOF,
+      fineToUF: ufTot > 0 ? fineMassUF / ufTot : 0,   // fracción de finos dentro del underflow
+      coarseToOF: ofTot > 0 ? coarseMassOF / ofTot : 0, // fracción de gruesos dentro del overflow
+      d50Feed: p.d50Feed,
+      sigmaFeed: p.sigmaFeed
+    };
+
+    out.warnings = buildWarnings(out);
+    return out;
+  }
+
+  function buildWarnings(m) {
+    var list = [];
+
+    if (m.CwUF > 0.55) {
+      list.push({
+        level: 'danger',
+        text: 'Descarga en cuerda (rope): la concentración en el underflow supera el 55 % en peso. El ápice es pequeño para tanto sólido; aumenta Do o reduce la alimentación.'
+      });
+    } else if (m.CwUF > 0.50) {
+      list.push({
+        level: 'warn',
+        text: 'Underflow muy espeso: cerca del límite de descarga en cuerda.'
+      });
+    }
+
+    if (m.Rf < 0.06) {
+      list.push({
+        level: 'danger',
+        text: 'Reparto de agua muy bajo (<6 %): el ápice puede obstruirse. Considera aumentar su diámetro.'
+      });
+    } else if (m.Rf > 0.40) {
+      list.push({
+        level: 'warn',
+        text: 'Reparto de agua alto (>40 %): el ápice es grande y arrastra finos hacia el underflow (menor eficiencia de clasificación).'
+      });
+    }
+
+    if (m.params.pressure > 250) {
+      list.push({
+        level: 'warn',
+        text: 'Presión elevada: alto consumo energético y desgaste acelerado de las paredes del equipo.'
+      });
+    }
+
+    if (m.coarseToOF > 0.12) {
+      list.push({
+        level: 'warn',
+        text: 'Arrastre de gruesos al rebose (>12 % del rebose por encima de 2·d50c): revisa la presión o el diámetro del vortex finder.'
+      });
+    }
+
+    return list;
+  }
+
+  root.HydroModel = {
+    DEFAULTS: DEFAULTS,
+    LIMITS: LIMITS,
+    compute: compute,
+    clamp: clamp,
+    logNormalCdf: logNormalCdf
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+  <script>
+/*
+ * charts.js
+ * Gráficos en canvas (sin librerías): curva de partición y distribución de tamaño.
+ */
+(function (root) {
+  'use strict';
+
+  var C = {
+    grid: 'rgba(120,165,200,0.10)',
+    axis: 'rgba(140,185,220,0.42)',
+    text: 'rgba(163,198,222,0.78)',
+    textDim: 'rgba(140,175,200,0.55)',
+    cyan: '#22d3ee',
+    teal: '#2dd4bf',
+    amber: '#f59e0b',
+    slate: '#7f9db8'
+  };
+
+  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+  function prep(canvas) {
+    var dpr = Math.min(root.devicePixelRatio || 1, 2);
+    var rect = canvas.getBoundingClientRect();
+    var w = Math.max(240, Math.round(rect.width || 320));
+    var h = Math.max(140, Math.round(rect.height || 200));
+    var bw = Math.round(w * dpr);
+    var bh = Math.round(h * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function makeFrame(W, H, pad) {
+    var lo = Math.log10(3);
+    var hi = Math.log10(1200);
+    return {
+      X: function (d) {
+        var v = Math.log10(Math.max(3, Math.min(1200, d)));
+        return pad.l + (v - lo) / (hi - lo) * (W - pad.l - pad.r);
+      },
+      pw: W - pad.l - pad.r,
+      ph: H - pad.t - pad.b
+    };
+  }
+
+  function plotBackground(ctx, W, H, pad) {
+    roundRect(ctx, pad.l, pad.t, W - pad.l - pad.r, H - pad.t - pad.b, 8);
+    ctx.fillStyle = 'rgba(5,13,21,0.55)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(120,170,205,0.10)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function gridX(ctx, X, values, pad, H) {
+    ctx.save();
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.font = '500 9.5px ' + FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    values.forEach(function (v) {
+      var x = Math.round(X(v)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, pad.t + 4);
+      ctx.lineTo(x, H - pad.b);
+      ctx.stroke();
+      ctx.fillStyle = C.textDim;
+      ctx.fillText(v >= 1000 ? '1000' : String(v), x, H - pad.b + 8);
+    });
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '500 9px ' + FONT;
+    ctx.fillStyle = C.textDim;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('µm', X(1200) + 2, H - pad.b + 8);
+    ctx.restore();
+  }
+
+  function gridY(ctx, Y, values, pad, W, fmt) {
+    ctx.save();
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
+    ctx.font = '500 9.5px ' + FONT;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    values.forEach(function (v) {
+      var y = Math.round(Y(v)) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(W - pad.r, y);
+      ctx.stroke();
+      ctx.fillStyle = C.textDim;
+      ctx.fillText(fmt(v), pad.l - 8, y);
+    });
+    ctx.restore();
+  }
+
+  /* ------------------------- curva de partición ---------------------- */
+
+  function partition(canvas, model) {
+    if (!model) return;
+    var pr = prep(canvas);
+    var ctx = pr.ctx;
+    var W = pr.w;
+    var H = pr.h;
+    var pad = { l: 46, r: 18, t: 26, b: 32 };
+
+    var f = makeFrame(W, H, pad);
+    var X = f.X;
+    var Y = function (v) { return H - pad.b - v * f.ph; };
+
+    plotBackground(ctx, W, H, pad);
+    gridY(ctx, Y, [0, 0.25, 0.5, 0.75, 1], pad, W, function (v) { return Math.round(v * 100) + '%'; });
+    gridX(ctx, X, [10, 100, 1000], pad, H);
+
+    // banda d25 - d75
+    var x25 = X(model.d25);
+    var x75 = X(model.d75);
+    var band = ctx.createLinearGradient(x25, 0, x75, 0);
+    band.addColorStop(0, 'rgba(45,212,191,0.02)');
+    band.addColorStop(0.5, 'rgba(45,212,191,0.10)');
+    band.addColorStop(1, 'rgba(45,212,191,0.02)');
+    ctx.fillStyle = band;
+    ctx.fillRect(x25, pad.t + 2, Math.max(1, x75 - x25), f.ph - 2);
+
+    // curva
+    var pts = [];
+    for (var i = 0; i < model.bins.length; i++) {
+      pts.push([X(model.bins[i].mid), Y(model.etaArr[i])]);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], H - pad.b);
+    for (var j = 0; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
+    ctx.lineTo(pts[pts.length - 1][0], H - pad.b);
+    ctx.closePath();
+    var area = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+    area.addColorStop(0, 'rgba(34,211,238,0.28)');
+    area.addColorStop(1, 'rgba(34,211,238,0.01)');
+    ctx.fillStyle = area;
+    ctx.fill();
+
+    ctx.save();
+    ctx.beginPath();
+    for (var k = 0; k < pts.length; k++) {
+      if (k === 0) ctx.moveTo(pts[k][0], pts[k][1]);
+      else ctx.lineTo(pts[k][0], pts[k][1]);
+    }
+    ctx.strokeStyle = C.cyan;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(34,211,238,0.55)';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.restore();
+
+    // bypass Rf
+    var yRf = Y(model.Rf);
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(pad.l, yRf);
+    ctx.lineTo(W - pad.r, yRf);
+    ctx.strokeStyle = 'rgba(245,158,11,0.70)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '600 9px ' + FONT;
+    ctx.letterSpacing = '0.5px';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(250,195,100,0.92)';
+    ctx.fillText('Rf = ' + (model.Rf * 100).toFixed(0) + '%', pad.l + 6, yRf - 4);
+    ctx.restore();
+
+    // marca d50c
+    var xd = X(model.d50c);
+    var yd = Y(model.Rf + (1 - model.Rf) * 0.5);
+    ctx.save();
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(xd, H - pad.b);
+    ctx.lineTo(xd, yd);
+    ctx.strokeStyle = 'rgba(45,212,191,0.75)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(xd, yd, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#06111a';
+    ctx.fill();
+    ctx.strokeStyle = C.teal;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // etiqueta d50c
+    var label = 'd50c ' + Math.round(model.d50c) + ' µm';
+    ctx.font = '600 9.5px ' + FONT;
+    ctx.letterSpacing = '0.4px';
+    var tw = ctx.measureText(label).width;
+    var lx = Math.min(Math.max(xd + 9, pad.l + 4), W - pad.r - tw - 10);
+    roundRect(ctx, lx - 5, pad.t + 2, tw + 10, 17, 5);
+    ctx.fillStyle = 'rgba(4,20,28,0.85)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(45,212,191,0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = C.teal;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, lx, pad.t + 11);
+    ctx.letterSpacing = '0px';
+
+    // títulos
+    ctx.font = '600 8.5px ' + FONT;
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = C.textDim;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('EFICIENCIA AL UNDERFLOW, η', pad.l, pad.t - 8);
+    ctx.textAlign = 'right';
+    ctx.fillText('TAMAÑO DE PARTÍCULA', W - pad.r, pad.t - 8);
+    ctx.letterSpacing = '0px';
+  }
+
+  /* ---------------------- distribución de tamaño --------------------- */
+
+  function psd(canvas, model) {
+    if (!model) return;
+    var pr = prep(canvas);
+    var ctx = pr.ctx;
+    var W = pr.w;
+    var H = pr.h;
+    var pad = { l: 42, r: 16, t: 26, b: 32 };
+
+    var f = makeFrame(W, H, pad);
+    var X = f.X;
+
+    var maxV = 0;
+    for (var i = 0; i < model.bins.length; i++) {
+      maxV = Math.max(maxV, model.feedDist[i], model.ufDist[i], model.ofDist[i]);
+    }
+    maxV = Math.max(0.5, maxV * 1.14);
+
+    var Y = function (v) { return H - pad.b - (v / maxV) * f.ph; };
+
+    plotBackground(ctx, W, H, pad);
+    gridY(ctx, Y, [0, maxV / 2, maxV], pad, W, function (v) { return v.toFixed(1) + '%'; });
+    gridX(ctx, X, [10, 100, 1000], pad, H);
+
+    function series(data, stroke, fillTop, fillBottom, dashed) {
+      var p = [];
+      for (var i = 0; i < model.bins.length; i++) {
+        p.push([X(model.bins[i].mid), Y(data[i])]);
+      }
+      ctx.beginPath();
+      ctx.moveTo(p[0][0], H - pad.b);
+      for (var j = 0; j < p.length; j++) ctx.lineTo(p[j][0], p[j][1]);
+      ctx.lineTo(p[p.length - 1][0], H - pad.b);
+      ctx.closePath();
+      var g = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+      g.addColorStop(0, fillTop);
+      g.addColorStop(1, fillBottom);
+      ctx.fillStyle = g;
+      ctx.fill();
+
+      ctx.save();
+      ctx.beginPath();
+      for (var k = 0; k < p.length; k++) {
+        if (k === 0) ctx.moveTo(p[k][0], p[k][1]);
+        else ctx.lineTo(p[k][0], p[k][1]);
+      }
+      if (dashed) ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 1.9;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    series(model.feedDist, C.slate, 'rgba(127,157,184,0.08)', 'rgba(127,157,184,0.005)', true);
+    series(model.ofDist, C.cyan, 'rgba(34,211,238,0.15)', 'rgba(34,211,238,0.005)', false);
+    series(model.ufDist, C.amber, 'rgba(245,158,11,0.15)', 'rgba(245,158,11,0.005)', false);
+
+    ctx.font = '600 8.5px ' + FONT;
+    ctx.letterSpacing = '1px';
+    ctx.fillStyle = C.textDim;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('% MÁSICO POR INTERVALO', pad.l, pad.t - 8);
+    ctx.textAlign = 'right';
+    ctx.fillText('TAMAÑO DE PARTÍCULA', W - pad.r, pad.t - 8);
+    ctx.letterSpacing = '0px';
+  }
+
+  root.Charts = { partition: partition, psd: psd };
+})(window);
+
+</script>
+  <script>
+/*
+ * cyclone.js
+ * Render técnico del hidrociclón + animación de partículas.
+ *
+ * Vista de sección con espesor de pared, materiales metálicos, bridas,
+ * núcleo de aire luminoso, cintas de flujo helicoidales y anotaciones.
+ *
+ *  - partículas gruesas -> pared -> espiral descendente -> ápice (underflow)
+ *  - partículas finas   -> núcleo -> espiral ascendente -> vortex finder (overflow)
+ */
+(function (root) {
+  'use strict';
+
+  var VW = 520;
+  var VH = 760;
+  var TAU = Math.PI * 2;
+
+  var GEO = {
+    cx: 260,
+    top: 130,
+    cylBottom: 334,
+    apexY: 668,
+    Rcyl: 108,
+    Rapex: 13,
+    vfTop: 36,
+    vfBottom: 202,
+    Rvf: 36,
+    inletY: 186,
+    inletH: 54,
+    inletX: 56,
+    inletEnd: 152,
+    wall: 6
+  };
+
+  var PALETTE = ['#5ad2ff', '#5ef2b8', '#ffd166', '#ff9f43', '#ff5d5d'];
+  var INK = 'rgba(178,208,230,0.72)';
+  var INK_DIM = 'rgba(150,185,212,0.34)';
+
+  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+  function wallR(y) {
+    if (y <= GEO.cylBottom) return GEO.Rcyl;
+    var t = (y - GEO.cylBottom) / (GEO.apexY - GEO.cylBottom);
+    t = Math.max(0, Math.min(1, t));
+    return GEO.Rcyl + (GEO.Rapex - GEO.Rcyl) * t;
+  }
+
+  function sizeColor(d) {
+    if (d < 25) return PALETTE[0];
+    if (d < 63) return PALETTE[1];
+    if (d < 150) return PALETTE[2];
+    if (d < 300) return PALETTE[3];
+    return PALETTE[4];
+  }
+
+  function rgba(hex, a) {
+    var r = parseInt(hex.slice(1, 3), 16);
+    var g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function bodyPath(ctx, inset) {
+    var R = GEO.Rcyl - inset;
+    var Ra = Math.max(2, GEO.Rapex - inset * 0.6);
+    var top = GEO.top + inset * 0.5;
+    var ap = GEO.apexY - inset * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(GEO.cx - R, top);
+    ctx.lineTo(GEO.cx - R, GEO.cylBottom);
+    ctx.lineTo(GEO.cx - Ra, ap);
+    ctx.lineTo(GEO.cx + Ra, ap);
+    ctx.lineTo(GEO.cx + R, GEO.cylBottom);
+    ctx.lineTo(GEO.cx + R, top);
+    ctx.closePath();
+  }
+
+  function makeGlow(color) {
+    var s = document.createElement('canvas');
+    s.width = 32;
+    s.height = 32;
+    var g = s.getContext('2d');
+    var grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grd.addColorStop(0, rgba(color, 0.95));
+    grd.addColorStop(0.30, rgba(color, 0.42));
+    grd.addColorStop(1, rgba(color, 0));
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 32, 32);
+    return s;
+  }
+
+  /* ------------------------------------------------------------------ */
+
+  function CycloneView(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.particles = [];
+    this.model = null;
+    this.time = 0;
+    this.spawnAcc = 0;
+    this.spawnRate = 62;
+    this.maxParticles = 620;
+    this.paused = false;
+    this.cw = 520;
+    this.ch = 760;
+    this.dpr = 1;
+    this.pressureNorm = 0.35;
+    this.speedFactor = 1;
+    this.last = 0;
+
+    this.sprites = {};
+    for (var i = 0; i < PALETTE.length; i++) {
+      this.sprites[PALETTE[i]] = makeGlow(PALETTE[i]);
+    }
+
+    var self = this;
+    this._loop = function (ts) { self.loop(ts); };
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this._ro = new ResizeObserver(function () { self.resize(); });
+      this._ro.observe(canvas.parentElement);
+    } else {
+      root.addEventListener('resize', function () { self.resize(); });
+    }
+    this.resize();
+    root.requestAnimationFrame(this._loop);
+  }
+
+  CycloneView.prototype.resize = function () {
+    var parent = this.canvas.parentElement;
+    if (!parent) return;
+    var rect = parent.getBoundingClientRect();
+    this.dpr = Math.min(root.devicePixelRatio || 1, 2);
+    this.cw = Math.max(260, Math.round(rect.width));
+    this.ch = Math.max(360, Math.round(rect.height));
+    this.canvas.width = Math.round(this.cw * this.dpr);
+    this.canvas.height = Math.round(this.ch * this.dpr);
+  };
+
+  CycloneView.prototype.setModel = function (model) {
+    this.model = model;
+    this.pressureNorm = Math.max(0, Math.min(1, (model.params.pressure - 30) / 270));
+    this.speedFactor = Math.max(0.75, Math.min(1.45, Math.sqrt(model.params.pressure / 100)));
+    this.spawnRate = 48 + 26 * Math.max(0.45, Math.min(1.7, model.Q_m3h / 60));
+  };
+
+  CycloneView.prototype.setPaused = function (paused) {
+    this.paused = paused;
+  };
+
+  CycloneView.prototype.clear = function () {
+    this.particles.length = 0;
+    this.spawnAcc = 0;
+  };
+
+  CycloneView.prototype.loop = function (ts) {
+    var dt = this.last ? (ts - this.last) / 1000 : 0.016;
+    this.last = ts;
+    dt = Math.max(0, Math.min(0.05, dt));
+    if (!this.paused) {
+      this.time += dt;
+      this.update(dt);
+    }
+    this.draw();
+    root.requestAnimationFrame(this._loop);
+  };
+
+  /* ------------------------------ física visual ----------------------- */
+
+  CycloneView.prototype.spawn = function () {
+    var m = this.model;
+    if (!m) return;
+
+    var d = m.sampleD();
+    var sizeNorm = Math.max(0, Math.min(1, Math.log(d / 3) / Math.log(1000 / 3)));
+    var y0 = GEO.inletY + (Math.random() - 0.5) * 30;
+
+    this.particles.push({
+      d: d,
+      color: sizeColor(d),
+      toUF: Math.random() < m.eta(d),
+      phase: 'feed',
+      t: Math.random() * 0.25,
+      x0: GEO.inletX + 8 + Math.random() * 14,
+      y0: y0,
+      x: GEO.inletX,
+      y: y0,
+      px0: 0,
+      py0: 0,
+      z: 1,
+      r: GEO.Rcyl * 0.8,
+      theta: -1.5708 + Math.random() * 0.7,
+      spin: 0.85 + Math.random() * 0.3,
+      vDown: 54 + 36 * sizeNorm + Math.random() * 10,
+      vUp: 92 + Math.random() * 32,
+      turnY: GEO.cylBottom + 16 + Math.random() * 160,
+      mode: 'down',
+      alpha: 1,
+      sprayVx: (Math.random() < 0.5 ? -1 : 1) * (22 + Math.random() * 58),
+      px: 1.3 + 2.5 * sizeNorm
+    });
+  };
+
+  CycloneView.prototype.update = function (dt) {
+    var m = this.model;
+    if (!m) return;
+
+    this.spawnAcc += dt * this.spawnRate;
+    while (this.spawnAcc >= 1) {
+      this.spawnAcc -= 1;
+      if (this.particles.length < this.maxParticles) this.spawn();
+    }
+
+    var omega = 4.0 * (0.75 + 0.5 * Math.sqrt(m.params.pressure / 100));
+    var sf = this.speedFactor || 1;
+
+    for (var i = this.particles.length - 1; i >= 0; i--) {
+      var p = this.particles[i];
+      var kill = false;
+      p.px0 = p.x;
+      p.py0 = p.y;
+
+      if (p.phase === 'feed') {
+        p.t += dt;
+        var k = Math.min(1, p.t / 0.55);
+        var e = k * k * (3 - 2 * k);
+        p.x = p.x0 + ((GEO.cx - GEO.Rcyl * 0.82) - p.x0) * e;
+        p.y = p.y0;
+        p.z = 1;
+        if (k >= 1) {
+          p.phase = 'swirl';
+          p.r = GEO.Rcyl * 0.82;
+        }
+        continue;
+      }
+
+      if (p.phase === 'swirl') {
+        p.theta += omega * dt * p.spin;
+        p.z = Math.cos(p.theta);
+        var target;
+
+        if (p.toUF) {
+          p.y += p.vDown * sf * dt;
+          target = Math.max(GEO.Rapex * 0.72, wallR(p.y) * 0.87);
+          if (p.y >= GEO.apexY - 4) {
+            p.y = GEO.apexY - 2;
+            p.x = GEO.cx + p.r * Math.sin(p.theta);
+            p.phase = 'exitUF';
+            continue;
+          }
+        } else {
+          if (p.mode === 'down') {
+            p.y += p.vDown * 0.92 * sf * dt;
+            target = Math.max(11, wallR(p.y) * 0.50);
+            if (p.y >= p.turnY) p.mode = 'up';
+          } else {
+            p.y -= p.vUp * sf * dt;
+            target = p.y > GEO.vfBottom ? Math.max(9, wallR(p.y) * 0.40) : GEO.Rvf * 0.34;
+            if (p.y <= GEO.vfTop + 6) {
+              p.phase = 'exitOF';
+              p.x = GEO.cx + p.r * Math.sin(p.theta);
+              continue;
+            }
+          }
+        }
+
+        p.r += (target - p.r) * Math.min(1, dt * 2.2);
+        p.x = GEO.cx + p.r * Math.sin(p.theta);
+        continue;
+      }
+
+      if (p.phase === 'exitUF') {
+        p.y += 170 * dt;
+        p.x += p.sprayVx * dt * 1.25;
+        p.alpha -= 1.15 * dt;
+        if (p.alpha <= 0 || p.y > VH + 40) kill = true;
+      } else if (p.phase === 'exitOF') {
+        p.y -= 195 * dt;
+        p.x += (GEO.cx - p.x) * dt * 2.4;
+        p.alpha -= 1.9 * dt;
+        if (p.alpha <= 0 || p.y < -40) kill = true;
+      }
+
+      if (kill) this.particles.splice(i, 1);
+    }
+  };
+
+  /* ------------------------------ dibujo ------------------------------ */
+
+  CycloneView.prototype.draw = function () {
+    var ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, this.cw, this.ch);
+
+    var s = Math.min(this.cw / VW, this.ch / VH);
+    var ox = (this.cw - VW * s) / 2;
+    var oy = (this.ch - VH * s) / 2;
+
+    // mantiene las anotaciones legibles aunque el equipo se dibuje pequeño
+    var marginV = Math.max(0, (this.cw - VW * s) / 2) / s;
+    var fit = 1 + marginV / 420;
+    this.textScale = Math.max(1, Math.min(1.38, Math.min(1 / s, fit)));
+
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(s, s);
+
+    this.drawBackdrop(ctx, s, ox, oy);
+    this.drawInlet(ctx);
+    this.drawBody(ctx);
+    this.drawTopPlate(ctx);
+    this.drawVortexFinder(ctx);
+    this.drawAirCore(ctx);
+    this.drawRibbons(ctx);
+    this.drawParticles(ctx);
+    this.drawShell(ctx);
+    this.drawJets(ctx);
+    this.drawCallouts(ctx);
+
+    ctx.restore();
+  };
+
+  /* ---------- fondo ---------- */
+
+  CycloneView.prototype.drawBackdrop = function (ctx, s, ox, oy) {
+    var cx = GEO.cx;
+    s = s || 1;
+    ox = ox || 0;
+    oy = oy || 0;
+    var vx0 = -ox / s;
+    var vx1 = (this.cw - ox) / s;
+    var vy0 = -oy / s;
+    var vy1 = (this.ch - oy) / s;
+    var rad = Math.max(330, Math.hypot(vx1 - vx0, vy1 - vy0) * 0.55);
+
+    var glow = ctx.createRadialGradient(cx, 400, 40, cx, 400, rad);
+    glow.addColorStop(0, 'rgba(45,212,191,0.10)');
+    glow.addColorStop(0.5, 'rgba(34,211,238,0.045)');
+    glow.addColorStop(1, 'rgba(34,211,238,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
+
+    // retícula técnica muy tenue
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,180,220,0.032)';
+    ctx.lineWidth = 1;
+    var gx = Math.floor(vx0 / 40) * 40;
+    var gy = Math.floor(vy0 / 40) * 40;
+    for (var x = gx; x < vx1; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, vy0); ctx.lineTo(x, vy1); ctx.stroke();
+    }
+    for (var y = gy; y < vy1; y += 40) {
+      ctx.beginPath(); ctx.moveTo(vx0, y); ctx.lineTo(vx1, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // sombra de piso
+    var sh = ctx.createRadialGradient(cx, 726, 8, cx, 726, 132);
+    sh.addColorStop(0, 'rgba(0,0,0,0.42)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.translate(cx, 726);
+    ctx.scale(1, 0.13);
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.arc(0, 0, 132, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  /* ---------- alimentación ---------- */
+
+  CycloneView.prototype.drawInlet = function (ctx) {
+    var y0 = GEO.inletY - GEO.inletH / 2;
+    var x0 = GEO.inletX;
+    var w = GEO.inletEnd - GEO.inletX + 6;
+
+    // tubo
+    roundRect(ctx, x0, y0, w, GEO.inletH, 8);
+    var g = ctx.createLinearGradient(0, y0, 0, y0 + GEO.inletH);
+    g.addColorStop(0, '#2a4a63');
+    g.addColorStop(0.24, '#4c7691');
+    g.addColorStop(0.5, '#35566f');
+    g.addColorStop(0.82, '#1d3346');
+    g.addColorStop(1, '#0e1b27');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(160,215,245,0.34)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // brida de entrada
+    var fx = x0 - 11;
+    roundRect(ctx, fx, y0 - 10, 13, GEO.inletH + 20, 3);
+    var fg = ctx.createLinearGradient(fx, 0, fx + 13, 0);
+    fg.addColorStop(0, '#42647e');
+    fg.addColorStop(0.45, '#6f99b4');
+    fg.addColorStop(1, '#22384b');
+    ctx.fillStyle = fg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(170,220,248,0.42)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // pernos
+    for (var i = 0; i < 4; i++) {
+      var by = y0 + 4 + i * ((GEO.inletH - 8) / 3);
+      ctx.beginPath();
+      ctx.arc(fx + 6.5, by, 1.7, 0, TAU);
+      ctx.fillStyle = '#0c1823';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(190,230,250,0.45)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    // flecha de flujo
+    ctx.save();
+    ctx.strokeStyle = 'rgba(120,205,240,0.5)';
+    ctx.fillStyle = 'rgba(120,205,240,0.5)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x0 + 14, GEO.inletY);
+    ctx.lineTo(x0 + 40, GEO.inletY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x0 + 46, GEO.inletY);
+    ctx.lineTo(x0 + 38, GEO.inletY - 4.5);
+    ctx.lineTo(x0 + 38, GEO.inletY + 4.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+
+  /* ---------- cuerpo ---------- */
+
+  CycloneView.prototype.drawBody = function (ctx) {
+    var cx = GEO.cx;
+
+    // silueta exterior (metal)
+    bodyPath(ctx, 0);
+    var outer = ctx.createLinearGradient(cx - GEO.Rcyl, 0, cx + GEO.Rcyl, 0);
+    outer.addColorStop(0, '#0a141f');
+    outer.addColorStop(0.10, '#1a3044');
+    outer.addColorStop(0.28, '#2f5270');
+    outer.addColorStop(0.50, '#3b6383');
+    outer.addColorStop(0.72, '#27455f');
+    outer.addColorStop(0.90, '#16293a');
+    outer.addColorStop(1, '#08121c');
+    ctx.fillStyle = outer;
+    ctx.fill();
+
+    // cavidad (pulpa)
+    bodyPath(ctx, GEO.wall);
+    var cav = ctx.createLinearGradient(cx - GEO.Rcyl, 0, cx + GEO.Rcyl, 0);
+    cav.addColorStop(0, '#061019');
+    cav.addColorStop(0.16, '#0f2233');
+    cav.addColorStop(0.46, '#1b3a52');
+    cav.addColorStop(0.62, '#17344a');
+    cav.addColorStop(0.86, '#0d1e2c');
+    cav.addColorStop(1, '#04090f');
+    ctx.fillStyle = cav;
+    ctx.fill();
+
+    // atenuación vertical de la cavidad (profundidad)
+    bodyPath(ctx, GEO.wall);
+    var vsh = ctx.createLinearGradient(0, GEO.top, 0, GEO.apexY);
+    vsh.addColorStop(0, 'rgba(0,0,0,0.06)');
+    vsh.addColorStop(0.55, 'rgba(0,0,0,0)');
+    vsh.addColorStop(1, 'rgba(0,0,0,0.22)');
+    ctx.fillStyle = vsh;
+    ctx.fill();
+
+    // pared metálica
+    bodyPath(ctx, GEO.wall * 0.5);
+    var wallG = ctx.createLinearGradient(cx - GEO.Rcyl, 0, cx + GEO.Rcyl, 0);
+    wallG.addColorStop(0, '#a8cde4');
+    wallG.addColorStop(0.22, '#5f8ba8');
+    wallG.addColorStop(0.5, '#3d617c');
+    wallG.addColorStop(0.78, '#5f8ba8');
+    wallG.addColorStop(1, '#a8cde4');
+    ctx.strokeStyle = wallG;
+    ctx.lineWidth = GEO.wall;
+    ctx.stroke();
+
+    // brillo interior del borde
+    bodyPath(ctx, GEO.wall + 0.8);
+    ctx.strokeStyle = 'rgba(150,220,255,0.16)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // reflejo especular vertical
+    ctx.save();
+    bodyPath(ctx, GEO.wall);
+    ctx.clip();
+    var spec = ctx.createLinearGradient(cx - GEO.Rcyl * 0.72, 0, cx - GEO.Rcyl * 0.1, 0);
+    spec.addColorStop(0, 'rgba(190,230,255,0)');
+    spec.addColorStop(0.55, 'rgba(190,230,255,0.085)');
+    spec.addColorStop(1, 'rgba(190,230,255,0)');
+    ctx.fillStyle = spec;
+    ctx.fillRect(cx - GEO.Rcyl, GEO.top, GEO.Rcyl * 1.6, GEO.apexY - GEO.top);
+    ctx.restore();
+
+    // sombra proyectada al pie
+    ctx.save();
+    bodyPath(ctx, 0);
+    ctx.clip();
+    var foot = ctx.createLinearGradient(0, GEO.apexY - 90, 0, GEO.apexY);
+    foot.addColorStop(0, 'rgba(0,0,0,0)');
+    foot.addColorStop(1, 'rgba(0,0,0,0.34)');
+    ctx.fillStyle = foot;
+    ctx.fillRect(cx - GEO.Rcyl, GEO.apexY - 90, GEO.Rcyl * 2, 90);
+    ctx.restore();
+  };
+
+  CycloneView.prototype.drawTopPlate = function (ctx) {
+    var cx = GEO.cx;
+    var R = GEO.Rcyl;
+
+    ctx.beginPath();
+    ctx.ellipse(cx, GEO.top, R, 6.5, 0, 0, TAU);
+    var g = ctx.createLinearGradient(cx - R, 0, cx + R, 0);
+    g.addColorStop(0, '#16293a');
+    g.addColorStop(0.3, '#3a5d7a');
+    g.addColorStop(0.55, '#4d7794');
+    g.addColorStop(0.8, '#2c4a63');
+    g.addColorStop(1, '#101f2c');
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(170,220,248,0.30)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // brida superior
+    roundRect(ctx, cx - R - 13, GEO.top - 15, 2 * R + 26, 15, 3);
+    var fg = ctx.createLinearGradient(0, GEO.top - 15, 0, GEO.top);
+    fg.addColorStop(0, '#41647e');
+    fg.addColorStop(0.35, '#2b475d');
+    fg.addColorStop(1, '#16293a');
+    ctx.fillStyle = fg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(170,220,248,0.38)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // pernos de la brida
+    var n = 7;
+    for (var i = 0; i < n; i++) {
+      var x = cx - R - 4 + i * ((2 * R + 8) / (n - 1));
+      ctx.beginPath();
+      ctx.arc(x, GEO.top - 7.5, 1.8, 0, TAU);
+      ctx.fillStyle = '#0a141e';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(185,225,248,0.42)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  };
+
+  CycloneView.prototype.drawVortexFinder = function (ctx) {
+    var cx = GEO.cx;
+    var R = GEO.Rvf;
+    var top = GEO.vfTop;
+    var bot = GEO.vfBottom;
+
+    // paredes del tubo
+    var g = ctx.createLinearGradient(cx - R, 0, cx + R, 0);
+    g.addColorStop(0, '#0d1a26');
+    g.addColorStop(0.10, '#3f6884');
+    g.addColorStop(0.22, '#8fb6cf');
+    g.addColorStop(0.32, '#4d7694');
+    g.addColorStop(0.5, '#31536d');
+    g.addColorStop(0.68, '#4d7694');
+    g.addColorStop(0.78, '#8fb6cf');
+    g.addColorStop(0.90, '#3f6884');
+    g.addColorStop(1, '#0d1a26');
+
+    // interior del tubo (bore)
+    ctx.fillStyle = 'rgba(5,11,18,0.92)';
+    ctx.fillRect(cx - R + 5, top, 2 * (R - 5), bot - top);
+
+    // paredes: dos franjas metálicas
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - R, top, 5, bot - top);
+    ctx.fillRect(cx + R - 5, top, 5, bot - top);
+
+    // borde inferior del vortex finder
+    ctx.beginPath();
+    ctx.moveTo(cx - R, bot);
+    ctx.lineTo(cx - R + 6, bot);
+    ctx.moveTo(cx + R - 6, bot);
+    ctx.lineTo(cx + R, bot);
+    ctx.strokeStyle = 'rgba(180,225,250,0.55)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // brida superior del tubo
+    roundRect(ctx, cx - R - 9, top - 10, 2 * R + 18, 12, 3);
+    var fg = ctx.createLinearGradient(0, top - 10, 0, top + 2);
+    fg.addColorStop(0, '#4a6e8a');
+    fg.addColorStop(1, '#1d3346');
+    ctx.fillStyle = fg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180,225,250,0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    for (var i = 0; i < 5; i++) {
+      var bx = cx - R + 2 + i * ((2 * R - 4) / 4);
+      ctx.beginPath();
+      ctx.arc(bx, top - 4, 1.5, 0, TAU);
+      ctx.fillStyle = '#0a141e';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(185,225,248,0.4)';
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+    }
+  };
+
+  CycloneView.prototype.drawAirCore = function (ctx) {
+    var cx = GEO.cx;
+    var top = GEO.vfBottom + 6;
+    var bot = GEO.apexY - 8;
+    var w = 5 + 9 * this.pressureNorm;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx - w, top);
+    ctx.bezierCurveTo(cx - w * 0.85, top + 90, cx - 5.5, bot - 120, cx - 3.6, bot);
+    ctx.lineTo(cx + 3.6, bot);
+    ctx.bezierCurveTo(cx + 5.5, bot - 120, cx + w * 0.85, top + 90, cx + w, top);
+    ctx.closePath();
+
+    var g = ctx.createLinearGradient(0, top, 0, bot);
+    g.addColorStop(0, 'rgba(210,245,255,0.20)');
+    g.addColorStop(0.35, 'rgba(180,230,255,0.13)');
+    g.addColorStop(0.8, 'rgba(150,210,245,0.06)');
+    g.addColorStop(1, 'rgba(120,180,220,0.02)');
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(190,240,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // hilo brillante central
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    var lg = ctx.createLinearGradient(0, top, 0, bot);
+    lg.addColorStop(0, 'rgba(150,230,255,0.30)');
+    lg.addColorStop(1, 'rgba(150,230,255,0)');
+    ctx.strokeStyle = lg;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx, top + 6);
+    ctx.lineTo(cx, bot - 4);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  /* ---------- cintas de flujo ---------- */
+
+  CycloneView.prototype.drawRibbons = function (ctx) {
+    var t = this.time;
+    var amp = 0.085 + 0.085 * this.pressureNorm;
+    var cx = GEO.cx;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+
+    function draw(reverse, rFactor, color, width, phase, k) {
+      for (var j = 0; j < 2; j++) {
+        ctx.beginPath();
+        var started = false;
+        if (!reverse) {
+          for (var y = GEO.vfBottom + 2; y <= GEO.apexY - 10; y += 7) {
+            var rr = Math.max(6, wallR(y) * rFactor);
+            var x = cx + rr * Math.sin(y * k + phase + j * Math.PI);
+            if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+          }
+        } else {
+          for (var y2 = GEO.apexY - 16; y2 >= GEO.vfBottom + 8; y2 -= 7) {
+            var rr2 = Math.max(5, wallR(y2) * rFactor);
+            var x2 = cx + rr2 * Math.sin(y2 * k + phase + j * Math.PI);
+            if (!started) { ctx.moveTo(x2, y2); started = true; } else ctx.lineTo(x2, y2);
+          }
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.stroke();
+      }
+    }
+
+    draw(false, 0.80, 'rgba(255,172,86,' + (amp * 0.9).toFixed(3) + ')', 2.1, -t * 2.0, 0.030);
+    draw(true, 0.34, 'rgba(105,220,255,' + amp.toFixed(3) + ')', 1.9, t * 2.3, 0.034);
+    ctx.restore();
+
+    // flechas de dirección
+    function arrow(px, py, ang, size, color) {
+      ctx.beginPath();
+      ctx.moveTo(px - size * Math.cos(ang - 0.55), py - size * Math.sin(ang - 0.55));
+      ctx.lineTo(px, py);
+      ctx.lineTo(px - size * Math.cos(ang + 0.55), py - size * Math.sin(ang + 0.55));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    var ys = [250, 400, 540];
+    for (var i = 0; i < ys.length; i++) {
+      var y3 = ys[i];
+      var r3 = wallR(y3) * 0.80;
+      var x3 = cx + r3 * Math.sin(y3 * 0.030 - t * 2.0);
+      var x3b = cx + r3 * Math.sin((y3 + 4) * 0.030 - t * 2.0);
+      arrow(x3, y3, Math.atan2(4, x3b - x3), 4.4, 'rgba(255,190,120,0.55)');
+
+      var y4 = 300 + i * 110;
+      var r4 = Math.max(6, wallR(y4) * 0.34);
+      var x4 = cx + r4 * Math.sin(y4 * 0.034 + t * 2.3);
+      var x4b = cx + r4 * Math.sin((y4 - 4) * 0.034 + t * 2.3);
+      arrow(x4, y4, Math.atan2(-4, x4b - x4), 3.8, 'rgba(120,220,255,0.55)');
+    }
+  };
+
+  /* ---------- partículas ---------- */
+
+  CycloneView.prototype.drawParticles = function (ctx) {
+    var list = this.particles.slice();
+    list.sort(function (a, b) { return a.z - b.z; });
+
+    var i, p, depth, rad, a;
+
+    // estelas de movimiento
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (i = 0; i < list.length; i++) {
+      p = list[i];
+      if (p.phase === 'feed' || p.alpha <= 0.05) continue;
+      var dx = p.x - p.px0;
+      var dy = p.y - p.py0;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.4) continue;
+      depth = 0.80 + 0.22 * (p.z * 0.5 + 0.5);
+      ctx.beginPath();
+      ctx.moveTo(p.x - dx * 2.2, p.y - dy * 2.2);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = p.color;
+      ctx.globalAlpha = p.alpha * 0.28 * depth;
+      ctx.lineWidth = Math.max(0.8, p.px * depth * 0.9);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // halos (aditivo)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (i = 0; i < list.length; i++) {
+      p = list[i];
+      if (p.alpha <= 0.05) continue;
+      depth = 0.80 + 0.22 * (p.z * 0.5 + 0.5);
+      var gr = p.px * 2.9 * depth;
+      ctx.globalAlpha = Math.min(0.42, p.alpha * 0.42 * depth);
+      ctx.drawImage(this.sprites[p.color], p.x - gr, p.y - gr, gr * 2, gr * 2);
+    }
+    ctx.restore();
+
+    // núcleos
+    for (i = 0; i < list.length; i++) {
+      p = list[i];
+      if (p.alpha <= 0.02) continue;
+      depth = 0.80 + 0.22 * (p.z * 0.5 + 0.5);
+      rad = p.px * depth;
+      a = p.alpha * (0.55 + 0.45 * (p.z * 0.5 + 0.5));
+
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rad, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  };
+
+  /* ---------- detalles del equipo ---------- */
+
+  CycloneView.prototype.drawShell = function (ctx) {
+    var cx = GEO.cx;
+
+    // borde exterior del cuerpo
+    bodyPath(ctx, 0);
+    ctx.strokeStyle = 'rgba(190,232,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // ápice / boquilla
+    ctx.beginPath();
+    ctx.moveTo(cx - GEO.Rapex - 3, GEO.apexY);
+    ctx.lineTo(cx - GEO.Rapex - 1, GEO.apexY + 9);
+    ctx.lineTo(cx + GEO.Rapex + 1, GEO.apexY + 9);
+    ctx.lineTo(cx + GEO.Rapex + 3, GEO.apexY);
+    ctx.closePath();
+    var ag = ctx.createLinearGradient(cx - GEO.Rapex, 0, cx + GEO.Rapex, 0);
+    ag.addColorStop(0, '#20374a');
+    ag.addColorStop(0.5, '#5d87a3');
+    ag.addColorStop(1, '#1a2e3f');
+    ctx.fillStyle = ag;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,196,120,0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // aro del ápice
+    ctx.beginPath();
+    ctx.ellipse(cx, GEO.apexY + 9, GEO.Rapex + 3, 3.4, 0, 0, TAU);
+    ctx.fillStyle = 'rgba(255,168,72,0.30)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,198,128,0.75)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  };
+
+  /* ---------- chorros ---------- */
+
+  CycloneView.prototype.drawJets = function (ctx) {
+    var cx = GEO.cx;
+
+    // rebose
+    ctx.save();
+    var og = ctx.createLinearGradient(0, 0, 0, GEO.vfTop + 30);
+    og.addColorStop(0, 'rgba(80,205,255,0.16)');
+    og.addColorStop(0.6, 'rgba(80,205,255,0.05)');
+    og.addColorStop(1, 'rgba(80,205,255,0)');
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.moveTo(cx - GEO.Rvf + 5, GEO.vfTop - 6);
+    ctx.lineTo(cx - GEO.Rvf + 10, 0);
+    ctx.lineTo(cx + GEO.Rvf - 10, 0);
+    ctx.lineTo(cx + GEO.Rvf - 5, GEO.vfTop - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // descarga
+    ctx.save();
+    var sg = ctx.createLinearGradient(0, GEO.apexY + 6, 0, VH);
+    sg.addColorStop(0, 'rgba(255,164,66,0.26)');
+    sg.addColorStop(0.45, 'rgba(255,150,50,0.10)');
+    sg.addColorStop(1, 'rgba(255,150,50,0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.moveTo(cx - GEO.Rapex - 2, GEO.apexY + 8);
+    ctx.bezierCurveTo(cx - 26, GEO.apexY + 54, cx - 56, VH - 60, cx - 78, VH - 4);
+    ctx.lineTo(cx + 78, VH - 4);
+    ctx.bezierCurveTo(cx + 56, VH - 60, cx + 26, GEO.apexY + 54, cx + GEO.Rapex + 2, GEO.apexY + 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // núcleo brillante del chorro
+    var cg = ctx.createLinearGradient(0, GEO.apexY + 10, 0, VH - 20);
+    cg.addColorStop(0, 'rgba(255,205,140,0.30)');
+    cg.addColorStop(1, 'rgba(255,205,140,0)');
+    ctx.strokeStyle = cg;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, GEO.apexY + 12);
+    ctx.lineTo(cx, VH - 30);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  /* ---------- anotaciones ---------- */
+
+  CycloneView.prototype.drawCallouts = function (ctx) {
+    var cx = GEO.cx;
+    var ts = this.textScale || 1;
+    var FS = 9.6 * ts;
+    var SUB = 8.5 * ts;
+    var LINE = 12 * ts;
+
+    function label(text, x, y, align, color) {
+      ctx.font = '600 ' + FS.toFixed(2) + 'px ' + FONT;
+      ctx.letterSpacing = (1.1 * ts).toFixed(2) + 'px';
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      ctx.letterSpacing = '0px';
+    }
+
+    function sub(text, x, y, align, color) {
+      ctx.font = '500 ' + SUB.toFixed(2) + 'px ' + FONT;
+      ctx.letterSpacing = (0.6 * ts).toFixed(2) + 'px';
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      ctx.letterSpacing = '0px';
+    }
+
+    function leader(ax, ay, lx, ly, side) {
+      var dir = side === 'right' ? 1 : -1;
+
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(lx - 10 * dir, ly);
+      ctx.lineTo(lx - 4 * dir, ly);
+      ctx.strokeStyle = INK_DIM;
+      ctx.lineWidth = ts;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(ax, ay, 2.1 * ts, 0, TAU);
+      ctx.fillStyle = 'rgba(170,220,248,0.80)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ax, ay, 3.9 * ts, 0, TAU);
+      ctx.strokeStyle = 'rgba(170,220,248,0.28)';
+      ctx.lineWidth = 0.8 * ts;
+      ctx.stroke();
+    }
+
+    // alimentación
+    label('ALIMENTACIÓN', 150, 140, 'right', INK);
+    ctx.beginPath();
+    ctx.moveTo(120, 148);
+    ctx.lineTo(120, GEO.inletY - GEO.inletH / 2 - 2);
+    ctx.strokeStyle = INK_DIM;
+    ctx.lineWidth = ts;
+    ctx.stroke();
+
+    // rebose
+    label('REBOSE', 392, 58, 'left', 'rgba(130,225,255,0.88)');
+    sub('OVERFLOW · FINOS', 392, 58 + LINE, 'left', 'rgba(120,200,235,0.45)');
+    leader(cx + GEO.Rvf - 6, 66, 392, 58, 'right');
+
+    // vortex finder
+    label('VORTEX FINDER', 392, 152, 'left', INK);
+    leader(cx + GEO.Rvf - 1, 160, 392, 152, 'right');
+
+    // núcleo de aire
+    label('NÚCLEO DE AIRE', 392, 432, 'left', INK);
+    leader(cx + 5, 432, 392, 432, 'right');
+
+    // zona de clasificación
+    label('ZONA DE CLASIFICACIÓN', 150, 500, 'right', INK);
+    leader(cx - 46, 508, 150, 500, 'left');
+
+    // descarga
+    label('DESCARGA', 392, 654, 'left', 'rgba(255,192,124,0.88)');
+    sub('UNDERFLOW · GRUESOS', 392, 654 + LINE, 'left', 'rgba(240,190,130,0.45)');
+    leader(cx + GEO.Rapex + 6, 664, 392, 654, 'right');
+  };
+
+  root.CycloneView = CycloneView;
+})(window);
+
+</script>
+  <script>
+/*
+ * app.js
+ * Puente entre la interfaz, el modelo y la visualización.
+ */
+(function (root) {
+  'use strict';
+
+  var HM = root.HydroModel;
+
+  var CONTROLS = [
+    {
+      key: 'pressure', label: 'Presión de entrada', unit: 'kPa',
+      min: 30, max: 300, step: 5,
+      hint: 'Mayor presión → mayor caudal y tamaño de corte más fino.'
+    },
+    {
+      key: 'dc', label: 'Diámetro del hidrociclón (Dc)', unit: 'mm',
+      min: 75, max: 660, step: 5,
+      hint: 'A mayor diámetro, mayor capacidad pero corte más grueso.'
+    },
+    {
+      key: 'diRatio', label: 'Tubo de rebose (Di/Dc)', unit: '',
+      min: 0.20, max: 0.45, step: 0.01,
+      hint: 'Diámetro del vortex finder: controla el caudal de rebose y el corte.'
+    },
+    {
+      key: 'doRatio', label: 'Diámetro del ápice (Do/Dc)', unit: '',
+      min: 0.08, max: 0.26, step: 0.005,
+      hint: 'Ápice o spigot: define cuánta agua y sólidos salen por el underflow.'
+    },
+    {
+      key: 'feedSolids', label: 'Sólidos en alimentación', unit: '% peso',
+      min: 3, max: 55, step: 1,
+      hint: 'Alta concentración → separación más gruesa y riesgo de descarga en cuerda.'
+    },
+    {
+      key: 'd50Feed', label: 'Tamaño mediano de alimentación', unit: 'µm',
+      min: 20, max: 400, step: 5,
+      hint: 'Mediana (d50) de la distribución log-normal de la alimentación.'
+    },
+    {
+      key: 'sigmaFeed', label: 'Amplitud de la distribución (σg)', unit: '',
+      min: 1.5, max: 4.5, step: 0.1,
+      hint: 'Desviación estándar geométrica: cuánto se dispersa el tamaño de partícula.'
+    },
+    {
+      key: 'rhoS', label: 'Densidad de las partículas', unit: 'kg/m³',
+      min: 1500, max: 5000, step: 50,
+      hint: 'Mayor densidad → las partículas se separan a menor tamaño.'
+    }
+  ];
+
+  var PRESETS = [
+    { name: 'Clasificación estándar', params: {} },
+    {
+      name: 'Corte fino (alta presión)',
+      params: { pressure: 230, diRatio: 0.26, doRatio: 0.13, feedSolids: 15, d50Feed: 90, sigmaFeed: 2.4 }
+    },
+    {
+      name: 'Deslamado (corte grueso)',
+      params: { pressure: 70, diRatio: 0.40, doRatio: 0.21, feedSolids: 12, d50Feed: 250, sigmaFeed: 2.2 }
+    },
+    {
+      name: 'Carga alta (riesgo de cuerda)',
+      params: { pressure: 90, doRatio: 0.09, feedSolids: 45, d50Feed: 150, sigmaFeed: 3.0 }
+    }
+  ];
+
+  var overrides = {};
+  var model = HM.compute(overrides);
+  var view = null;
+  var paused = false;
+
+  var elControls = document.getElementById('controls');
+  var elPresets = document.getElementById('presets');
+  var elMetrics = document.getElementById('metrics');
+  var elWarnings = document.getElementById('warnings');
+  var elBalance = document.getElementById('balanceBody');
+  var elStageBadge = document.getElementById('stageBadge');
+  var elPause = document.getElementById('btnPause');
+  var elReset = document.getElementById('btnReset');
+  var partitionCanvas = document.getElementById('chartPartition');
+  var psdCanvas = document.getElementById('chartPsd');
+
+  /* ----------------------------- controles ---------------------------- */
+
+  function fmtRatio(key, v, params) {
+    if (key === 'diRatio') return v.toFixed(2) + '  ·  ' + Math.round(v * params.dc) + ' mm';
+    if (key === 'doRatio') return v.toFixed(3) + '  ·  ' + Math.round(v * params.dc) + ' mm';
+    if (key === 'sigmaFeed') return v.toFixed(1);
+    return String(Math.round(v));
+  }
+
+  function buildControls() {
+    var html = '';
+    CONTROLS.forEach(function (c) {
+      html += '<div class="control" data-key="' + c.key + '" title="' + c.hint + '">' +
+        '<div class="control-head">' +
+        '<label for="in-' + c.key + '">' + c.label + '</label>' +
+        '<span class="control-value" id="val-' + c.key + '"></span>' +
+        '</div>' +
+        '<input type="range" id="in-' + c.key + '" min="' + c.min + '" max="' + c.max +
+        '" step="' + c.step + '" value="' + model.params[c.key] + '">' +
+        '<div class="control-foot"><span class="control-hint">' + c.hint + '</span>' +
+        (c.unit ? '<span class="control-unit">' + c.unit + '</span>' : '') +
+        '</div>' +
+        '</div>';
+    });
+    elControls.innerHTML = html;
+
+    CONTROLS.forEach(function (c) {
+      var input = document.getElementById('in-' + c.key);
+      var val = document.getElementById('val-' + c.key);
+
+      function paint() {
+        var v = parseFloat(input.value);
+        val.textContent = fmtRatio(c.key, v, model.params);
+        var pct = ((v - c.min) / (c.max - c.min)) * 100;
+        input.style.setProperty('--fill', pct.toFixed(1) + '%');
+      }
+
+      input.addEventListener('input', function () {
+        overrides[c.key] = parseFloat(input.value);
+        var chips = elPresets.querySelectorAll('.chip');
+        for (var i = 0; i < chips.length; i++) chips[i].classList.remove('active');
+        refresh();
+        paintAll();
+      });
+
+      input.__paint = paint;
+      paint();
+    });
+  }
+
+  function paintAll() {
+    CONTROLS.forEach(function (c) {
+      var input = document.getElementById('in-' + c.key);
+      if (input && input.__paint) input.__paint();
+    });
+  }
+
+  function buildPresets() {
+    PRESETS.forEach(function (p, idx) {
+      var b = document.createElement('button');
+      b.className = 'chip' + (idx === 0 ? ' active' : '');
+      b.textContent = p.name;
+      b.addEventListener('click', function () {
+        overrides = {};
+        Object.keys(p.params).forEach(function (k) { overrides[k] = p.params[k]; });
+        var chips = elPresets.querySelectorAll('.chip');
+        for (var i = 0; i < chips.length; i++) chips[i].classList.remove('active');
+        b.classList.add('active');
+        refresh();
+        syncInputs();
+        view.clear();
+      });
+      elPresets.appendChild(b);
+    });
+  }
+
+  function syncInputs() {
+    CONTROLS.forEach(function (c) {
+      var input = document.getElementById('in-' + c.key);
+      if (input) {
+        input.value = model.params[c.key];
+        if (input.__paint) input.__paint();
+      }
+    });
+  }
+
+  /* ------------------------------ métricas ---------------------------- */
+
+  function nf(v, d) {
+    return v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
+  function renderMetrics() {
+    var cards = [
+      { label: 'Caudal de alimentación', value: nf(model.Q_m3h, 1), unit: 'm³/h', sub: nf(model.Q_ls, 1) + ' L/s' },
+      { label: 'Tamaño de corte d50c', value: nf(model.d50c, 0), unit: 'µm', sub: 'd25 ' + nf(model.d25, 0) + ' · d75 ' + nf(model.d75, 0) + ' µm' },
+      { label: 'Recuperación de sólidos', value: nf(model.solidsRecovery * 100, 1), unit: '%', sub: 'sólidos que van al underflow' },
+      { label: 'Reparto de agua (Rf)', value: nf(model.Rf * 100, 1), unit: '%', sub: 'agua que va al underflow' },
+      { label: 'Sólidos en underflow', value: nf(model.CwUF * 100, 1), unit: '% peso', sub: 'descarga' },
+      { label: 'Sólidos en rebose', value: nf(model.CwOF * 100, 1), unit: '% peso', sub: 'overflow' },
+      { label: 'Nitidez (m)', value: nf(model.m, 2), unit: '', sub: 'pendiente de la curva' },
+      { label: 'Carga de sólidos', value: nf(model.solidsFeed * 3.6, 1), unit: 't/h', sub: 'alimentación' }
+    ];
+
+    var html = '';
+    cards.forEach(function (c) {
+      html += '<div class="metric">' +
+        '<span class="metric-label">' + c.label + '</span>' +
+        '<span class="metric-value">' + c.value + (c.unit ? '<em>' + c.unit + '</em>' : '') + '</span>' +
+        '<span class="metric-sub">' + c.sub + '</span>' +
+        '</div>';
+    });
+    elMetrics.innerHTML = html;
+  }
+
+  function renderBalance() {
+    var rows = [
+      ['Alimentación', model.Q_m3h, model.solidsFeed * 3.6, model.params.feedSolids],
+      ['Rebose (overflow)', model.Qo * 3600, model.solidsOF * 3.6, model.CwOF * 100],
+      ['Descarga (underflow)', model.Qu * 3600, model.solidsUF * 3.6, model.CwUF * 100]
+    ];
+    var html = '';
+    rows.forEach(function (r, i) {
+      html += '<tr class="' + (i === 0 ? 'row-feed' : i === 1 ? 'row-of' : 'row-uf') + '">' +
+        '<td>' + r[0] + '</td>' +
+        '<td>' + nf(r[1], 1) + '</td>' +
+        '<td>' + nf(r[2], 1) + '</td>' +
+        '<td>' + nf(r[3], 1) + '</td>' +
+        '</tr>';
+    });
+    elBalance.innerHTML = html;
+  }
+
+  function renderWarnings() {
+    var html = '';
+    model.warnings.forEach(function (w) {
+      html += '<div class="alert alert-' + w.level + '">' +
+        '<span class="alert-icon">' + (w.level === 'danger' ? '!' : 'i') + '</span>' +
+        '<span>' + w.text + '</span></div>';
+    });
+    elWarnings.innerHTML = html;
+  }
+
+  function renderBadge() {
+    elStageBadge.innerHTML =
+      '<span class="dot"></span> P = ' + nf(model.params.pressure, 0) + ' kPa' +
+      ' <span class="sep">·</span> Q = ' + nf(model.Q_m3h, 0) + ' m³/h';
+  }
+
+  /* ------------------------------- ciclo ------------------------------ */
+
+  function refresh() {
+    model = HM.compute(overrides);
+    renderMetrics();
+    renderBalance();
+    renderWarnings();
+    renderBadge();
+    root.Charts.partition(partitionCanvas, model);
+    root.Charts.psd(psdCanvas, model);
+    if (view) view.setModel(model);
+  }
+
+  document.getElementById('btnPause').addEventListener('click', function () {
+    paused = !paused;
+    if (view) view.setPaused(paused);
+    elPause.textContent = paused ? 'Reanudar animación' : 'Pausar animación';
+    elPause.classList.toggle('is-paused', paused);
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function () {
+    overrides = {};
+    var chips = elPresets.querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', i === 0);
+    refresh();
+    syncInputs();
+    view.clear();
+  });
+
+  var resizeTimer = null;
+  root.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      root.Charts.partition(partitionCanvas, model);
+      root.Charts.psd(psdCanvas, model);
+    }, 120);
+  });
+
+  /* ------------------------------- inicio ----------------------------- */
+
+  buildControls();
+  buildPresets();
+  view = new root.CycloneView(document.getElementById('cyclone'));
+  view.setModel(model);
+  refresh();
+})(window);
+
+</script>
+</body>
+</html>
